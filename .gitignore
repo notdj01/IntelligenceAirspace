@@ -1,0 +1,47 @@
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg
+*.egg-info/
+dist/
+build/
+*.spec
+
+# ── Virtual environments ───────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+.env
+
+# ── Secrets / credentials ─────────────────────────────────────────────────────
+credentials.json
+*.key
+*.pem
+.env.*
+
+# ── Streamlit ─────────────────────────────────────────────────────────────────
+.streamlit/
+
+# ── ML model weights (large binary files) ────────────────────────────────────
+data_prepared/*.pth
+# Remove the line above if you WANT to commit model weights to the repo.
+# For large models, prefer Git LFS or upload to HuggingFace Hub instead.
+
+# ── Raw datasets (can be re-downloaded via download_datasets.py) ──────────────
+data/
+
+# ── Logs / temp ───────────────────────────────────────────────────────────────
+*.log
+*.txt
+!requirements.txt
+flake8_errors.txt
+*.tmp
+.DS_Store
+Thumbs.db
+
+# ── IDE / editor ──────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.code-workspace
