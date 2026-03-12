@@ -46,3 +46,12 @@ Thumbs.db
 .vscode/
 .idea/
 *.code-workspace
+
+# ── Cursor / local tooling ────────────────────────────────────────────────────
+.cursor/
+
+# ── Node / frontend ───────────────────────────────────────────────────────────
+node_modules/
+Frontend/node_modules/
+Frontend/dist/
+Frontend/.vite/
