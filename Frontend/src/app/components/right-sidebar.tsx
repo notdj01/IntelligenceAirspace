@@ -7,7 +7,12 @@ import {
   ChevronRight,
 } from "lucide-react";
 import type { AirTarget, Classification } from "../../lib/airspace-data";
-import { RISK_COLORS, getXAIRecommendation } from "../../lib/airspace-data";
+import {
+  RISK_COLORS,
+  NO_FLY_ZONES,
+  getNearestNoFlyZone,
+  getXAIRecommendation,
+} from "../../lib/airspace-data";
 
 interface RightSidebarProps {
   target: AirTarget | null;
@@ -31,6 +36,11 @@ export function RightSidebar({ target, onConfirm }: RightSidebarProps) {
 }
 
 function TargetDetailCard({ target }: { target: AirTarget | null }) {
+  const nearest =
+    target != null ? getNearestNoFlyZone(target.coords) : { zone: null, distanceKm: Infinity };
+  const insideNfz =
+    nearest.zone && nearest.distanceKm <= nearest.zone.radius_km;
+
   return (
     <div
       style={{
@@ -105,6 +115,29 @@ function TargetDetailCard({ target }: { target: AirTarget | null }) {
               color="#94a3b8"
               noBorder
             />
+            <StatRow
+              label="RISK SCORE"
+              value={`${(target.risk_score ?? 0).toFixed(1)} / 100`}
+              color={
+                target.risk_level === "Critical"
+                  ? "#f97316"
+                  : target.risk_level === "High"
+                  ? "#fb923c"
+                  : target.risk_level === "Low"
+                  ? "#4ade80"
+                  : "#e5e7eb"
+              }
+            />
+            {nearest.zone && (
+              <StatRow
+                label="NEAREST NFZ"
+                value={`${nearest.zone.name} · ${nearest.distanceKm.toFixed(1)} km${
+                  insideNfz ? " (INSIDE)" : ""
+                }`}
+                color={insideNfz ? "#f97316" : "#94a3b8"}
+                noBorder
+              />
+            )}
           </div>
         </div>
       )}
@@ -318,7 +351,7 @@ function CommanderXAIBox({
       style={{
         background: "rgba(251,146,60,0.06)",
         border: "1px solid rgba(251,146,60,0.25)",
-        minHeight: "180px",
+        minHeight: "260px",
       }}
       className="rounded-lg p-4 flex flex-col gap-3"
     >

@@ -16,7 +16,9 @@ from langgraph.graph import StateGraph, END
 from agents.state import AirspaceState, TargetMetadata
 from agents.fetch_node import fetch_data
 from agents.predict_node import predict_trajectory
+from agents.anomaly_node import detect_anomalies
 from agents.classify_node import classification_gate
+from agents.risk_node import risk_assessment
 
 logger = logging.getLogger(__name__)
 
@@ -27,15 +29,22 @@ def build_graph() -> StateGraph:
 
     builder.add_node("fetch_data",         fetch_data)
     builder.add_node("predict_trajectory", predict_trajectory)
+    builder.add_node("anomaly_node",       detect_anomalies)
     builder.add_node("classification_gate", classification_gate)
+    builder.add_node("risk_assessment",    risk_assessment)
 
     builder.set_entry_point("fetch_data")
     builder.add_edge("fetch_data", "predict_trajectory")
-    builder.add_edge("predict_trajectory", "classification_gate")
-    builder.add_edge("classification_gate", END)
+    builder.add_edge("predict_trajectory", "anomaly_node")
+    builder.add_edge("anomaly_node", "classification_gate")
+    builder.add_edge("classification_gate", "risk_assessment")
+    builder.add_edge("risk_assessment", END)
 
     graph = builder.compile()
-    logger.info("LangGraph compiled: fetch_data → predict_trajectory → classification_gate → END")
+    logger.info(
+        "LangGraph compiled: fetch_data → predict_trajectory → anomaly_node → "
+        "classification_gate → risk_assessment → END"
+    )
     return graph
 
 

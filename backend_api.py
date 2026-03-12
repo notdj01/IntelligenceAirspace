@@ -145,6 +145,12 @@ def _target_to_frontend(t_uid: str, t: Any) -> Dict[str, Any]:
     # Risk level – already matches frontend union type ("Low" | "Medium" | "High" | "Critical")
     risk_level = str(d.get("risk", "Low"))
 
+    # Anomaly information (optional)
+    anomaly_score = float(d.get("anomaly_score", 0.0) or 0.0)
+    anomaly_label = d.get("anomaly_label") or "Normal"
+    anomaly_reasons = d.get("anomaly_reasons") or []
+    risk_score = float(d.get("risk_score", 0.0) or 0.0)
+
     return {
         "id": d.get("callsign") or d.get("icao24") or t_uid,
         "coords": coords,
@@ -155,6 +161,10 @@ def _target_to_frontend(t_uid: str, t: Any) -> Dict[str, Any]:
         "classification": classification,
         "confidence": round(conf),
         "risk_level": risk_level,
+        "anomaly_score": anomaly_score,
+        "anomaly_label": anomaly_label,
+        "anomaly_reasons": anomaly_reasons,
+        "risk_score": risk_score,
     }
 
 
@@ -170,6 +180,12 @@ def get_state() -> Dict[str, Any]:
     targets = [
         _target_to_frontend(uid, t) for uid, t in active_targets.items()
     ]
+
+    anomalous_count = sum(
+        1
+        for t in targets
+        if t.get("anomaly_label") == "Anomalous"
+    )
 
     # For now, expose a simple synthetic agent status that always shows the
     # three core agents as active. This matches the existing React model.
@@ -187,6 +203,7 @@ def get_state() -> Dict[str, Any]:
         "agents": agents,
         "agent_log": airspace.get("agent_log", []),
         "errors": airspace.get("errors", []),
+        "anomalous_target_count": anomalous_count,
     }
 
 

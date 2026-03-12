@@ -6,6 +6,7 @@ import {
   Terminal,
   AlertTriangle,
   Info,
+  ShieldAlert,
 } from "lucide-react";
 import type { Agents, RiskAlert, AgentStatus, AlertType } from "../../lib/airspace-data";
 import { formatAlertTime } from "../../lib/airspace-data";
@@ -228,6 +229,12 @@ function AlertItem({
       border: "rgba(255,255,255,0.07)",
       icon: <Info size={14} />,
       color: "#22d3ee",
+    },
+    NFZ: {
+      bg: "rgba(248,113,113,0.12)",
+      border: "rgba(248,113,113,0.4)",
+      icon: <ShieldAlert size={14} />,
+      color: "#fecaca",
     },
   };
 

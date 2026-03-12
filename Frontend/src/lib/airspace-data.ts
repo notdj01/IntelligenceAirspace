@@ -3,7 +3,7 @@
 export type RiskLevel = "Critical" | "High" | "Medium" | "Low";
 export type Classification = "Drone" | "Bird" | "Aircraft" | "Unknown";
 export type AgentStatus = "Active" | "Ready" | "Offline";
-export type AlertType = "ALERT" | "WARNING" | "INFO";
+export type AlertType = "ALERT" | "WARNING" | "INFO" | "NFZ";
 
 export interface AirTarget {
   id: string;
@@ -16,6 +16,10 @@ export interface AirTarget {
   classification: Classification;
   confidence: number;
   risk_level: RiskLevel;
+  anomaly_score?: number;
+  anomaly_label?: "Normal" | "Suspect" | "Anomalous";
+  anomaly_reasons?: string[];
+  risk_score?: number;
 }
 
 export interface Agents {
@@ -27,6 +31,15 @@ export interface Agents {
 export interface DashboardState {
   active_targets: AirTarget[];
   agents: Agents;
+  anomalous_target_count?: number;
+}
+
+export interface NoFlyZone {
+  id: string;
+  name: string;
+  description: string;
+  center: [number, number]; // [lat, lon]
+  radius_km: number;
 }
 
 export interface RiskAlert {
@@ -49,6 +62,68 @@ export const NO_FLY_ZONE: [number, number][] = [
   [18.95, 72.8],
   [18.94, 72.84],
   [18.91, 72.85],
+];
+
+// High-level red zones across India derived from DGCA / Digital Sky style guidance.
+// Coordinates are approximate and for simulation/visualization only.
+export const NO_FLY_ZONES: NoFlyZone[] = [
+  {
+    id: "rashtrapati-bhavan-delhi",
+    name: "Rashtrapati Bhavan & Central Delhi",
+    description:
+      "Permanent no-fly zone covering Parliament, PM residence, and central government enclave.",
+    center: [28.6143, 77.1995],
+    radius_km: 5,
+  },
+  {
+    id: "taj-mahal-agra",
+    name: "Taj Mahal, Agra",
+    description: "Protected monument airspace in Agra.",
+    center: [27.1751, 78.0421],
+    radius_km: 3,
+  },
+  {
+    id: "barc-mumbai",
+    name: "BARC, Mumbai",
+    description: "Bhabha Atomic Research Centre nuclear installation security zone.",
+    center: [19.0481, 72.9106],
+    radius_km: 3,
+  },
+  {
+    id: "tirumala-temple-ap",
+    name: "Tirumala Venkateswara Temple",
+    description: "Temple airspace in Tirupati district, Andhra Pradesh.",
+    center: [13.6839, 79.3473],
+    radius_km: 3,
+  },
+  {
+    id: "padmanabhaswamy-temple-kerala",
+    name: "Padmanabhaswamy Temple",
+    description: "Temple airspace in Thiruvananthapuram, Kerala.",
+    center: [8.4828, 76.9432],
+    radius_km: 3,
+  },
+  {
+    id: "kalpakkam-nuclear-tn",
+    name: "Kalpakkam Nuclear Installation",
+    description: "Approximate 10-km security radius in Tamil Nadu.",
+    center: [12.5546, 80.154],
+    radius_km: 10,
+  },
+  {
+    id: "tower-of-silence-mumbai",
+    name: "Tower of Silence, Mumbai",
+    description: "Restricted heritage zone in South Mumbai.",
+    center: [18.9553, 72.7924],
+    radius_km: 2,
+  },
+  {
+    id: "mathura-refinery-up",
+    name: "Mathura Refinery",
+    description: "Critical petroleum infrastructure in Uttar Pradesh.",
+    center: [27.459, 77.73],
+    radius_km: 5,
+  },
 ];
 
 // Initial seed data - 4 targets around Mumbai
@@ -155,6 +230,12 @@ export const LIVE_MESSAGES = [
     `Transponder ${target.adsb ? "verified" : "lost"} on ${target.id}`,
   (target: AirTarget) =>
     `Commander acknowledged ${target.id} — monitoring ${target.risk_level} risk`,
+  (target: AirTarget) =>
+    target.anomaly_label === "Anomalous"
+      ? `${target.id}: Anomaly score ${target.anomaly_score?.toFixed(
+          3
+        )} — pattern breach`
+      : `${target.id}: No anomaly signature`,
 ];
 
 export function formatAlertTime(date: Date): string {
@@ -162,4 +243,37 @@ export function formatAlertTime(date: Date): string {
   const m = String(date.getUTCMinutes()).padStart(2, "0");
   const s = String(date.getUTCSeconds()).padStart(2, "0");
   return `${h}:${m}:${s}`;
+}
+
+export function getNearestNoFlyZone(
+  coords: [number, number]
+): { zone: NoFlyZone | null; distanceKm: number } {
+  const [lat, lon] = coords;
+  const R = 6371;
+
+  let bestZone: NoFlyZone | null = null;
+  let bestD = Infinity;
+
+  for (const zone of NO_FLY_ZONES) {
+    const [zLat, zLon] = zone.center;
+    const dLat = ((zLat - lat) * Math.PI) / 180;
+    const dLon = ((zLon - lon) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat * Math.PI) / 180) *
+        Math.cos((zLat * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const d = R * c;
+    if (d < bestD) {
+      bestD = d;
+      bestZone = zone;
+    }
+  }
+
+  if (!bestZone || !isFinite(bestD)) {
+    return { zone: null, distanceKm: Infinity };
+  }
+  return { zone: bestZone, distanceKm: bestD };
 }

@@ -1,14 +1,15 @@
 import { useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import type { AirTarget, Classification } from "../../lib/airspace-data";
-import { RISK_COLORS, NO_FLY_ZONE } from "../../lib/airspace-data";
+import type { AirTarget, Classification, NoFlyZone } from "../../lib/airspace-data";
+import { RISK_COLORS, NO_FLY_ZONES } from "../../lib/airspace-data";
 
 interface AirspaceMapClientProps {
   targets: AirTarget[];
   selectedId: string | null;
   onSelectTarget: (target: AirTarget) => void;
   onDeselect: () => void;
+  focusTargetId?: string | null;
 }
 
 export function AirspaceMapClient({
@@ -16,13 +17,16 @@ export function AirspaceMapClient({
   selectedId,
   onSelectTarget,
   onDeselect,
+  focusTargetId = null,
 }: AirspaceMapClientProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersRef = useRef<Map<string, L.Marker>>(new Map());
   const polylinesRef = useRef<Map<string, L.Polyline>>(new Map());
   const predictionPolylinesRef = useRef<Map<string, L.Polyline>>(new Map());
-   const predictionHeadsRef = useRef<Map<string, L.Marker>>(new Map());
+  const predictionHeadsRef = useRef<Map<string, L.Marker>>(new Map());
+  const nfzLayerRef = useRef<L.LayerGroup | null>(null);
+  const lastFocusedIdRef = useRef<string | null>(null);
   const onSelectTargetRef = useRef(onSelectTarget);
   const onDeselectRef = useRef(onDeselect);
 
@@ -50,23 +54,31 @@ export function AirspaceMapClient({
     // Add zoom control
     L.control.zoom({ position: "topright" }).addTo(map);
 
-    // Add No-Fly Zone polygon
-    const nfzPolygon = L.polygon(NO_FLY_ZONE, {
-      color: "#f43f5e",
-      fillColor: "#f43f5e",
-      fillOpacity: 0.12,
-      weight: 2,
-      dashArray: "6 4",
-    }).addTo(map);
+    // Add India-wide no-fly zones as circles
+    const nfzLayer = L.layerGroup().addTo(map);
+    NO_FLY_ZONES.forEach((zone: NoFlyZone) => {
+      const circle = L.circle(zone.center, {
+        radius: zone.radius_km * 1000,
+        color: "#f97316",
+        fillColor: "#f97316",
+        fillOpacity: 0.1,
+        weight: 2,
+        dashArray: "6 4",
+      }).addTo(nfzLayer);
 
-    nfzPolygon.bindTooltip(
-      `<span style="font-family: monospace; color: #f43f5e; font-size: 11px; font-weight: bold;">NO-FLY ZONE 3</span>`,
-      {
-        permanent: true,
-        direction: "center",
-        className: "nfz-tooltip",
-      }
-    );
+      circle.bindTooltip(
+        `<div style="font-family: monospace; font-size: 11px;">
+          <div style="font-weight:bold; color:#f97316;">${zone.name}</div>
+          <div style="color:#fec89a;">${zone.description}</div>
+        </div>`,
+        {
+          permanent: false,
+          direction: "top",
+          className: "nfz-tooltip",
+        }
+      );
+    });
+    nfzLayerRef.current = nfzLayer;
 
     // Click on empty map area deselects
     map.on("click", () => {
@@ -82,6 +94,11 @@ export function AirspaceMapClient({
       polylinesRef.current.clear();
       predictionPolylinesRef.current.clear();
       predictionHeadsRef.current.clear();
+      if (nfzLayerRef.current) {
+        nfzLayerRef.current.clearLayers();
+        nfzLayerRef.current.remove();
+        nfzLayerRef.current = null;
+      }
     };
   }, []);
 
@@ -100,6 +117,7 @@ export function AirspaceMapClient({
       const currentCoords = target.coords;
       const isSelected = selectedId === target.id;
       const riskColor = RISK_COLORS[target.risk_level];
+      const isAnomalous = target.anomaly_label === "Anomalous";
 
       // Update or create polyline
       let polyline = polylinesRef.current.get(target.id);
@@ -108,7 +126,7 @@ export function AirspaceMapClient({
           color: riskColor,
           weight: isSelected ? 2 : 1,
           opacity: isSelected ? 0.8 : 0.4,
-          dashArray: "4 3",
+          dashArray: isAnomalous ? "1 4" : "4 3",
         }).addTo(map);
         polylinesRef.current.set(target.id, polyline);
       } else {
@@ -117,6 +135,7 @@ export function AirspaceMapClient({
           color: riskColor,
           weight: isSelected ? 2 : 1,
           opacity: isSelected ? 0.8 : 0.4,
+          dashArray: isAnomalous ? "1 4" : "4 3",
         });
       }
 
@@ -126,7 +145,8 @@ export function AirspaceMapClient({
         const icon = createFlightIcon(
           target.classification,
           riskColor,
-          isSelected
+          isSelected,
+          isAnomalous
         );
         marker = L.marker(currentCoords, { icon }).addTo(map);
 
@@ -146,7 +166,8 @@ export function AirspaceMapClient({
         const icon = createFlightIcon(
           target.classification,
           riskColor,
-          isSelected
+          isSelected,
+          isAnomalous
         );
         marker.setIcon(icon);
         marker.setTooltipContent(createTooltipContent(target, riskColor));
@@ -229,6 +250,21 @@ export function AirspaceMapClient({
     });
   }, [targets, selectedId]);
 
+  // Focus map on a specific target when requested
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map || !focusTargetId) return;
+
+    if (lastFocusedIdRef.current === focusTargetId) return;
+
+    const target = targets.find((t) => t.id === focusTargetId);
+    if (!target) return;
+
+    const [lat, lon] = target.coords;
+    map.setView([lat, lon], map.getZoom());
+    lastFocusedIdRef.current = focusTargetId;
+  }, [focusTargetId, targets]);
+
   return (
     <div className="relative size-full rounded-lg overflow-hidden">
       {/* Map Container */}
@@ -269,38 +305,40 @@ export function AirspaceMapClient({
 function createFlightIcon(
   classification: Classification,
   riskColor: string,
-  isSelected: boolean
+  isSelected: boolean,
+  isAnomalous: boolean
 ): L.DivIcon {
   const size = isSelected ? 36 : 28;
+  const highlightColor = isAnomalous ? "#f97316" : riskColor;
   const shadow = isSelected
-    ? `drop-shadow(0 0 6px ${riskColor})`
-    : `drop-shadow(0 0 3px ${riskColor}88)`;
+    ? `drop-shadow(0 0 8px ${highlightColor})`
+    : `drop-shadow(0 0 3px ${highlightColor}88)`;
 
   let svgPath = "";
 
   if (classification === "Drone") {
     // Quadcopter top-down
     svgPath = `
-      <circle cx="12" cy="12" r="3" fill="${riskColor}" fill-opacity="0.33" stroke="${riskColor}" stroke-width="1.5" />
-      <circle cx="6" cy="6" r="2.5" fill="${riskColor}" fill-opacity="0.33" stroke="${riskColor}" stroke-width="1.5" />
-      <circle cx="18" cy="6" r="2.5" fill="${riskColor}" fill-opacity="0.33" stroke="${riskColor}" stroke-width="1.5" />
-      <circle cx="6" cy="18" r="2.5" fill="${riskColor}" fill-opacity="0.33" stroke="${riskColor}" stroke-width="1.5" />
-      <circle cx="18" cy="18" r="2.5" fill="${riskColor}" fill-opacity="0.33" stroke="${riskColor}" stroke-width="1.5" />
-      <line x1="12" y1="12" x2="6" y2="6" stroke="${riskColor}" stroke-width="1.5" />
-      <line x1="12" y1="12" x2="18" y2="6" stroke="${riskColor}" stroke-width="1.5" />
-      <line x1="12" y1="12" x2="6" y2="18" stroke="${riskColor}" stroke-width="1.5" />
-      <line x1="12" y1="12" x2="18" y2="18" stroke="${riskColor}" stroke-width="1.5" />
+      <circle cx="12" cy="12" r="3" fill="${highlightColor}" fill-opacity="0.33" stroke="${highlightColor}" stroke-width="1.5" />
+      <circle cx="6" cy="6" r="2.5" fill="${highlightColor}" fill-opacity="0.33" stroke="${highlightColor}" stroke-width="1.5" />
+      <circle cx="18" cy="6" r="2.5" fill="${highlightColor}" fill-opacity="0.33" stroke="${highlightColor}" stroke-width="1.5" />
+      <circle cx="6" cy="18" r="2.5" fill="${highlightColor}" fill-opacity="0.33" stroke="${highlightColor}" stroke-width="1.5" />
+      <circle cx="18" cy="18" r="2.5" fill="${highlightColor}" fill-opacity="0.33" stroke="${highlightColor}" stroke-width="1.5" />
+      <line x1="12" y1="12" x2="6" y2="6" stroke="${highlightColor}" stroke-width="1.5" />
+      <line x1="12" y1="12" x2="18" y2="6" stroke="${highlightColor}" stroke-width="1.5" />
+      <line x1="12" y1="12" x2="6" y2="18" stroke="${highlightColor}" stroke-width="1.5" />
+      <line x1="12" y1="12" x2="18" y2="18" stroke="${highlightColor}" stroke-width="1.5" />
     `;
   } else if (classification === "Bird") {
     // Bird wings
     svgPath = `
-      <path d="M3 12 C6 8, 10 6, 12 8 C14 6, 18 8, 21 12" fill="none" stroke="${riskColor}" stroke-width="2" />
-      <circle cx="12" cy="12" r="2" fill="${riskColor}" fill-opacity="0.5" />
+      <path d="M3 12 C6 8, 10 6, 12 8 C14 6, 18 8, 21 12" fill="none" stroke="${highlightColor}" stroke-width="2" />
+      <circle cx="12" cy="12" r="2" fill="${highlightColor}" fill-opacity="0.5" />
     `;
   } else {
     // Aircraft / default - star/arrow shape
     svgPath = `
-      <polygon points="12,2 15,9 22,9 16,14 18,21 12,17 6,21 8,14 2,9 9,9" fill="${riskColor}" fill-opacity="0.33" stroke="${riskColor}" stroke-width="1.5" />
+      <polygon points="12,2 15,9 22,9 16,14 18,21 12,17 6,21 8,14 2,9 9,9" fill="${highlightColor}" fill-opacity="0.33" stroke="${highlightColor}" stroke-width="1.5" />
     `;
   }
 
@@ -340,6 +378,18 @@ function createArrowIcon(riskColor: string): L.DivIcon {
 
 function createTooltipContent(target: AirTarget, riskColor: string): string {
   const adsbColor = target.adsb ? "#4ade80" : "#f43f5e";
+  const anomalyColor =
+    target.anomaly_label === "Anomalous"
+      ? "#f97316"
+      : target.anomaly_label === "Suspect"
+      ? "#fbbf24"
+      : "#64748b";
+  const anomalyText =
+    target.anomaly_label && target.anomaly_label !== "Normal"
+      ? `Anomaly: ${target.anomaly_label} (${(target.anomaly_score ?? 0).toFixed(
+          3
+        )})`
+      : "Anomaly: Normal";
   return `
     <div style="background: rgba(13,20,32,0.95); padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(12px);">
       <div style="font-family: monospace; font-size: 12px; font-weight: bold; color: ${riskColor}; margin-bottom: 4px;">
@@ -350,6 +400,9 @@ function createTooltipContent(target: AirTarget, riskColor: string): string {
       </div>
       <div style="font-family: monospace; font-size: 10px; color: ${adsbColor};">
         ADS-B: ${target.adsb ? "ON" : "OFF"}
+      </div>
+      <div style="font-family: monospace; font-size: 10px; color: ${anomalyColor}; margin-top: 2px;">
+        ${anomalyText}
       </div>
     </div>
   `;

@@ -78,6 +78,13 @@ class TargetMetadata:
     history_alt: List[float] = field(default_factory=list)
     predicted_trajectory: List[Dict[str, float]] = field(default_factory=list)
 
+    # Anomaly Detection
+    anomaly_score: float = 0.0
+    anomaly_label: Optional[str] = None
+    anomaly_reasons: List[str] = field(default_factory=list)
+    # Risk Assessment
+    risk_score: float = 0.0
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "uid": self.uid,
@@ -103,6 +110,10 @@ class TargetMetadata:
             "history_lon": self.history_lon,
             "history_alt": self.history_alt,
             "predicted_trajectory": self.predicted_trajectory,
+            "anomaly_score": self.anomaly_score,
+            "anomaly_label": self.anomaly_label,
+            "anomaly_reasons": self.anomaly_reasons,
+            "risk_score": self.risk_score,
         }
 
 

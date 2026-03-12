@@ -4,11 +4,13 @@ import { Satellite, Map, Activity, Clock } from "lucide-react";
 interface DashboardHeaderProps {
   targetCount: number;
   criticalCount: number;
+  anomalousCount?: number;
 }
 
 export function DashboardHeader({
   targetCount,
   criticalCount,
+  anomalousCount = 0,
 }: DashboardHeaderProps) {
   const [currentTime, setCurrentTime] = useState<string>("");
   const [isClient, setIsClient] = useState(false);
@@ -75,6 +77,13 @@ export function DashboardHeader({
           label={`${targetCount} TRACKS ACTIVE`}
           color="green"
         />
+        {anomalousCount > 0 && (
+          <StatusChip
+            icon={<Activity size={12} />}
+            label={`${anomalousCount} ANOMALOUS`}
+            color="rose"
+          />
+        )}
         {criticalCount > 0 && (
           <StatusChip
             label={`${criticalCount} CRITICAL`}

@@ -1,0 +1,54 @@
+{
+  "cycle_id": 1,
+  "center_lat": 19.0,
+  "center_lon": 72.85,
+  "anomalous_target_count": 1,
+  "agents": {
+    "sentry": "Active",
+    "profiler": "Active",
+    "commander": "Active"
+  },
+  "active_targets": [
+    {
+      "id": "UNID-007",
+      "coords": [18.92, 72.83],
+      "trajectory": [
+        [18.915, 72.825],
+        [18.917, 72.827],
+        [18.92, 72.83]
+      ],
+      "predicted_trajectory": [
+        [18.925, 72.835],
+        [18.93, 72.84]
+      ],
+      "speed": 150,
+      "adsb": false,
+      "classification": "Drone",
+      "confidence": 92,
+      "risk_level": "Critical",
+      "anomaly_score": 0.95,
+      "anomaly_label": "Anomalous",
+      "anomaly_reasons": ["Abrupt altitude change", "Large lateral jump"]
+    },
+    {
+      "id": "FLIGHT-221",
+      "coords": [19.08, 72.87],
+      "trajectory": [
+        [19.075, 72.865],
+        [19.077, 72.868],
+        [19.08, 72.87]
+      ],
+      "predicted_trajectory": [],
+      "speed": 480,
+      "adsb": true,
+      "classification": "Aircraft",
+      "confidence": 99,
+      "risk_level": "Low",
+      "anomaly_score": 0.12,
+      "anomaly_label": "Normal",
+      "anomaly_reasons": []
+    }
+  ],
+  "agent_log": [],
+  "errors": []
+}
