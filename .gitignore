@@ -26,7 +26,8 @@ credentials.json
 
 # ── ML model weights (large binary files) ────────────────────────────────────
 data_prepared/*.pth
-# Remove the line above if you WANT to commit model weights to the repo.
+data_prepared/*.csv
+# Remove the lines above if you WANT to commit model weights/preprocessed data.
 # For large models, prefer Git LFS or upload to HuggingFace Hub instead.
 
 # ── Raw datasets (can be re-downloaded via download_datasets.py) ──────────────
