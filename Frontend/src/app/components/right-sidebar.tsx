@@ -5,6 +5,9 @@ import {
   Bot,
   CheckCircle,
   ChevronRight,
+  Shield,
+  AlertTriangle,
+  Radio,
 } from "lucide-react";
 import type { AirTarget, Classification } from "../../lib/airspace-data";
 import {
@@ -30,6 +33,7 @@ export function RightSidebar({ target, onConfirm }: RightSidebarProps) {
     >
       <TargetDetailCard target={target} />
       <MicroDopplerPanel target={target} />
+      <ZeroTrustPanel target={target} />
       <CommanderXAIBox target={target} onConfirm={onConfirm} />
     </aside>
   );
@@ -414,6 +418,145 @@ function CommanderXAIBox({
         <span>CONFIRM RECOMMENDATION</span>
         <ChevronRight size={14} />
       </button>
+    </div>
+  );
+}
+
+// Zero-Trust Flight ID - Physics Verification Panel
+function ZeroTrustPanel({ target }: { target: AirTarget | null }) {
+  const isVerified = target?.physics_verified ?? true;
+  const spoofingFlags = target?.spoofing_flags ?? [];
+  const trustScore = target?.digital_identity_trust ?? 1.0;
+  const violations = target?.physics_violations ?? [];
+  const motorRpm = target?.motor_rpm_detected;
+
+  // Determine status color based on verification
+  const statusColor = !isVerified ? "#f43f5e" : spoofingFlags.length > 0 ? "#fb923c" : "#4ade80";
+  const statusIcon = !isVerified ? <AlertTriangle size={14} /> : <Shield size={14} />;
+  const statusText = !isVerified ? "SPOOFING DETECTED" : spoofingFlags.length > 0 ? "FLAGGED" : "PHYSICS VERIFIED";
+
+  return (
+    <div
+      style={{
+        background: "rgba(13,20,32,0.7)",
+        backdropFilter: "blur(12px)",
+        border: `1px solid ${!isVerified ? "rgba(244,63,94,0.4)" : "rgba(255,255,255,0.07)"}`,
+      }}
+      className="rounded-lg p-4 flex flex-col gap-3"
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Shield size={14} style={{ color: statusColor }} />
+          <h2 className="font-mono text-xs uppercase tracking-widest" style={{ color: statusColor }}>
+            ZERO-TRUST FLIGHT ID
+          </h2>
+        </div>
+        <div
+          style={{
+            background: `${statusColor}1A`,
+            border: `1px solid ${statusColor}40`,
+          }}
+          className="px-2 py-1 rounded-sm flex items-center gap-1"
+        >
+          {statusIcon}
+          <span className="font-mono text-[10px] font-bold" style={{ color: statusColor }}>
+            {statusText}
+          </span>
+        </div>
+      </div>
+
+      {/* Content */}
+      {!target ? (
+        <div
+          style={{ background: "rgba(15,23,42,0.8)" }}
+          className="h-[100px] rounded flex items-center justify-center"
+        >
+          <span className="font-mono text-xs text-[#334155]">
+            — WAITING FOR TARGET —
+          </span>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {/* Trust Score Bar */}
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-xs text-[#64748b]">Identity Trust</span>
+              <span className="font-mono text-xs font-bold" style={{ color: statusColor }}>
+                {(trustScore * 100).toFixed(0)}%
+              </span>
+            </div>
+            <div
+              style={{ background: "rgba(30,41,59,0.8)" }}
+              className="h-2 rounded-full overflow-hidden"
+            >
+              <div
+                style={{
+                  width: `${trustScore * 100}%`,
+                  background: statusColor,
+                  transition: "width 0.3s ease",
+                }}
+                className="h-full rounded-full"
+              />
+            </div>
+          </div>
+
+          {/* Spoofing Flags */}
+          {spoofingFlags.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <span className="font-mono text-xs text-[#f43f5e]">Violations Detected:</span>
+              {spoofingFlags.map((flag, idx) => (
+                <div
+                  key={idx}
+                  style={{ background: "rgba(244,63,94,0.1)", border: "1px solid rgba(244,63,94,0.2)" }}
+                  className="px-2 py-1 rounded flex items-center gap-2"
+                >
+                  <AlertTriangle size={10} className="text-[#f43f5e]" />
+                  <span className="font-mono text-[10px] text-[#f1f5f9]">{flag}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Motor RPM Detection */}
+          {motorRpm && (
+            <div className="flex items-center gap-2">
+              <Radio size={12} className="text-[#f43f5e]" />
+              <span className="font-mono text-xs text-[#64748b]">Motor Signature:</span>
+              <span className="font-mono text-xs font-bold text-[#f43f5e]">
+                {motorRpm.toFixed(0)} RPM
+              </span>
+            </div>
+          )}
+
+          {/* Physics Violations */}
+          {violations.length > 0 && (
+            <div
+              style={{ background: "rgba(15,23,42,0.5)" }}
+              className="rounded p-2 max-h-[80px] overflow-y-auto"
+            >
+              {violations.map((v, idx) => (
+                <div key={idx} className="font-mono text-[10px] text-[#94a3b8] leading-relaxed">
+                  • {v}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Verified Status */}
+          {isVerified && spoofingFlags.length === 0 && (
+            <div
+              style={{ background: "rgba(74,222,128,0.1)", border: "1px solid rgba(74,222,128,0.2)" }}
+              className="rounded p-2 flex items-center gap-2"
+            >
+              <Shield size={14} className="text-[#4ade80]" />
+              <span className="font-mono text-xs text-[#4ade80]">
+                All physics constraints verified. Digital identity trusted.
+              </span>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

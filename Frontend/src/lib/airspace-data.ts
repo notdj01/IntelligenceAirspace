@@ -20,6 +20,13 @@ export interface AirTarget {
   anomaly_label?: "Normal" | "Suspect" | "Anomalous";
   anomaly_reasons?: string[];
   risk_score?: number;
+  // Zero-Trust Flight ID - Physics Verification
+  physics_verified?: boolean;
+  spoofing_flags?: string[];
+  digital_identity_trust?: number;
+  physics_violations?: string[];
+  motor_rpm_detected?: number;
+  rcs_anomaly_score?: number;
 }
 
 export interface Agents {

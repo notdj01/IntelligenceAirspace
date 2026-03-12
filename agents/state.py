@@ -82,8 +82,20 @@ class TargetMetadata:
     anomaly_score: float = 0.0
     anomaly_label: Optional[str] = None
     anomaly_reasons: List[str] = field(default_factory=list)
+    
+    # Zero-Trust Flight ID - Physics Verification
+    physics_verified: bool = True                    # True if passed all physics checks
+    spoofing_flags: List[str] = field(default_factory=list)  # List of detected spoofing indicators
+    digital_identity_trust: float = 1.0              # 0.0 - 1.0 trust score
+    physics_violations: List[str] = field(default_factory=list)  # Detailed violation reasons
+    motor_rpm_detected: Optional[float] = None        # Detected motor RPM (if any)
+    rcs_anomaly_score: float = 0.0                    # RCS consistency score
+    
     # Risk Assessment
     risk_score: float = 0.0
+    
+    # Extended trajectory for physics verification
+    history_heading: List[float] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -109,10 +121,17 @@ class TargetMetadata:
             "history_lat": self.history_lat,
             "history_lon": self.history_lon,
             "history_alt": self.history_alt,
+            "history_heading": self.history_heading,
             "predicted_trajectory": self.predicted_trajectory,
             "anomaly_score": self.anomaly_score,
             "anomaly_label": self.anomaly_label,
             "anomaly_reasons": self.anomaly_reasons,
+            "physics_verified": self.physics_verified,
+            "spoofing_flags": self.spoofing_flags,
+            "digital_identity_trust": self.digital_identity_trust,
+            "physics_violations": self.physics_violations,
+            "motor_rpm_detected": self.motor_rpm_detected,
+            "rcs_anomaly_score": self.rcs_anomaly_score,
             "risk_score": self.risk_score,
         }
 

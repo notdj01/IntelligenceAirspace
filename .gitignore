@@ -1,3 +1,8 @@
+# ════════════════════════════════════════════════════════════════════════════════
+# AIRSPACE MONITOR - .gitignore
+# Keep this file up to date to ensure teammates can clone and run the project
+# ════════════════════════════════════════════════════════════════════════════════
+
 # ── Python ────────────────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
@@ -8,50 +13,95 @@ __pycache__/
 dist/
 build/
 *.spec
+.pytest_cache/
 
 # ── Virtual environments ───────────────────────────────────────────────────────
 .venv/
 venv/
 env/
 .env
+.venv3
 
 # ── Secrets / credentials ─────────────────────────────────────────────────────
+# IMPORTANT: Add credentials.json to this list if it exists locally
 credentials.json
 *.key
 *.pem
 .env.*
+*.env.local
 
 # ── Streamlit ─────────────────────────────────────────────────────────────────
 .streamlit/
+.streamlit/config.toml
 
-# ── ML model weights (large binary files) ────────────────────────────────────
+# ── ML model weights & large binary files ─────────────────────────────────────
+# These can be large and are typically regenerated or downloaded separately
 data_prepared/*.pth
-data_prepared/*.csv
-# Remove the lines above if you WANT to commit model weights/preprocessed data.
-# For large models, prefer Git LFS or upload to HuggingFace Hub instead.
+data_prepared/*.npy
+# Keep the anomaly_lstm.pth if it's needed (uncomment next line to track it)
+# !data_prepared/anomaly_lstm.pth
 
 # ── Raw datasets (can be re-downloaded via download_datasets.py) ──────────────
 data/
+# Archive datasets are large - comment out if you want to keep them
+archive/dataset/**
 
-# ── Logs / temp ───────────────────────────────────────────────────────────────
+# ── Logs / temp / cache ────────────────────────────────────────────────────────
 *.log
-*.txt
-!requirements.txt
-flake8_errors.txt
 *.tmp
-.DS_Store
-Thumbs.db
+*.cache
+.flake8
+flake8_errors.txt
+.mypy_cache/
+.python-version
 
-# ── IDE / editor ──────────────────────────────────────────────────────────────
+# ── IDE / editor ───────────────────────────────────────────────────────────────
 .vscode/
 .idea/
 *.code-workspace
+*.swp
+*.swo
 
-# ── Cursor / local tooling ────────────────────────────────────────────────────
+# ── Cursor / local tooling ───────────────────────────────────────────────────
 .cursor/
 
-# ── Node / frontend ───────────────────────────────────────────────────────────
+# ── Node / Frontend ──────────────────────────────────────────────────────────
+# node_modules is HUGE - must be ignored (teammates run: cd Frontend && npm install)
 node_modules/
 Frontend/node_modules/
+
+# Build outputs - can be regenerated
 Frontend/dist/
 Frontend/.vite/
+Frontend/build/
+
+# Environment files for frontend
+Frontend/.env
+Frontend/.env.local
+Frontend/.env.*.local
+
+# ── OS generated files ─────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# ── Test files (DO NOT IGNORE - teammates need these) ────────────────────────
+# test_zero_trust.py is intentionally NOT ignored
+
+# ── Documentation files (DO NOT IGNORE) ─────────────────────────────────────
+# docs/ folder contains important specs - intentionally NOT ignored
+
+# ── Root package files (DO NOT IGNORE) ──────────────────────────────────────
+# These are needed for installation:
+# - requirements.txt
+# - package.json (for Frontend)
+# - package-lock.json (for reproducible builds)
+# These files should NEVER be ignored
+
+# ════════════════════════════════════════════════════════════════════════════════
+# OPTIONAL: Uncomment the lines below if you want to track these large files
+# ════════════════════════════════════════════════════════════════════════════════
+
+# Track the anomaly model weights (uncomment if needed)
+# !data_prepared/anomaly_lstm.pth

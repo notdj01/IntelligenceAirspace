@@ -212,6 +212,90 @@ def fetch_manual_injections(
     return manual
 
 
+def fetch_spoofed_targets(
+    center_lat: float,
+    center_lon: float,
+    log: List[str],
+    include_spoofed: bool = True,
+) -> Dict[str, TargetMetadata]:
+    """
+    Generate synthetic spoofed targets for Zero-Trust testing.
+    
+    These targets have intentionally mismatched physics properties:
+    - "Bird" with drone-like RCS and velocity (motor signature)
+    - "Aircraft" with impossible turn rates
+    - "Drone" with phantom speed
+    
+    This function is called periodically to demonstrate the physics verification.
+    """
+    if not include_spoofed:
+        return {}
+    
+    spoofed: Dict[str, TargetMetadata] = {}
+    now = time.time()
+    random.seed(int(now) // 30)  # Changes every 30 seconds
+    
+    # Attack Type 1: Motor in Bird (identity hijack)
+    uid1 = f"spoof_bird_{int(now) % 1000:03d}"
+    spoofed[uid1] = TargetMetadata(
+        uid=uid1,
+        callsign="SPOOF-001",
+        latitude=center_lat + random.uniform(-0.5, 0.5),
+        longitude=center_lon + random.uniform(-0.5, 0.5),
+        altitude_m=random.uniform(100, 500),
+        velocity_ms=random.uniform(18, 25),  # Too fast for bird!
+        climb_rate_ms=random.uniform(-2, 2),
+        heading=random.uniform(0, 360),
+        source=TargetSource.RADAR,
+        radar_rcs=random.uniform(-5, 5),  # Much too high for bird!
+        radar_signal_strength="Moderate",
+        last_seen=now,
+        label=TargetLabel.BIRD,  # Claim to be a bird
+        risk=RiskLevel.LOW,
+    )
+    
+    # Attack Type 2: Phantom aircraft (impossible maneuver)
+    uid2 = f"spoof_phantom_{int(now) % 1000:03d}"
+    spoofed[uid2] = TargetMetadata(
+        uid=uid2,
+        callsign="PHANTOM-01",
+        latitude=center_lat + random.uniform(-1.0, 1.0),
+        longitude=center_lon + random.uniform(-1.0, 1.0),
+        altitude_m=random.uniform(1000, 5000),
+        velocity_ms=200,  # Normal aircraft speed
+        climb_rate_ms=random.uniform(45, 60),  # Impossible climb rate!
+        heading=random.uniform(0, 360),
+        source=TargetSource.RADAR,
+        radar_rcs=random.uniform(5, 15),  # Aircraft-like RCS
+        radar_signal_strength="Strong",
+        last_seen=now,
+        label=TargetLabel.COMMERCIAL,  # Claim to be commercial
+        risk=RiskLevel.LOW,
+    )
+    
+    # Attack Type 3: Category mismatch (wrong speed for type)
+    uid3 = f"spoof_category_{int(now) % 1000:03d}"
+    spoofed[uid3] = TargetMetadata(
+        uid=uid3,
+        callsign="CATEGORY-ERR",
+        latitude=center_lat + random.uniform(-0.3, 0.3),
+        longitude=center_lon + random.uniform(-0.3, 0.3),
+        altitude_m=random.uniform(50, 200),
+        velocity_ms=random.uniform(70, 90),  # Way too fast for drone!
+        climb_rate_ms=random.uniform(-1, 1),
+        heading=random.uniform(0, 360),
+        source=TargetSource.RADAR,
+        radar_rcs=random.uniform(-15, -5),
+        radar_signal_strength="Moderate",
+        last_seen=now,
+        label=TargetLabel.QUADCOPTER,  # Claim to be quadcopter but fly like jet
+        risk=RiskLevel.LOW,
+    )
+    
+    log.append("🛡️ [Zero-Trust] Injected 3 synthetic spoofed targets for physics verification testing")
+    return spoofed
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # LangGraph Node
 # ──────────────────────────────────────────────────────────────────────────────
@@ -236,7 +320,10 @@ def fetch_data(state: AirspaceState) -> AirspaceState:
     # 2. Simulated primary radar
     radar_targets = fetch_simulated_radar(center_lat, center_lon, log)
 
-    # 3. Manual injections (one-shot — consumed after this cycle)
+    # 3. Synthetic spoofed targets for Zero-Trust testing (every ~30 seconds)
+    spoofed_targets = fetch_spoofed_targets(center_lat, center_lon, log, include_spoofed=(cycle % 3 == 0))
+
+    # 4. Manual injections (one-shot — consumed after this cycle)
     manual_targets = fetch_manual_injections(
         state.get("manual_injections", []), log
     )
@@ -245,6 +332,7 @@ def fetch_data(state: AirspaceState) -> AirspaceState:
     merged: Dict[str, TargetMetadata] = {}
     merged.update(radar_targets)
     merged.update(manual_targets)
+    merged.update(spoofed_targets)
     merged.update(opensky_targets)
 
     # Preserve history from previous cycles

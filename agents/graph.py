@@ -19,6 +19,7 @@ from agents.predict_node import predict_trajectory
 from agents.anomaly_node import detect_anomalies
 from agents.classify_node import classification_gate
 from agents.risk_node import risk_assessment
+from agents.physics_verifier_node import physics_verifier
 
 logger = logging.getLogger(__name__)
 
@@ -31,19 +32,21 @@ def build_graph() -> StateGraph:
     builder.add_node("predict_trajectory", predict_trajectory)
     builder.add_node("anomaly_node",       detect_anomalies)
     builder.add_node("classification_gate", classification_gate)
+    builder.add_node("physics_verifier",   physics_verifier)  # Zero-Trust Flight ID
     builder.add_node("risk_assessment",    risk_assessment)
 
     builder.set_entry_point("fetch_data")
     builder.add_edge("fetch_data", "predict_trajectory")
     builder.add_edge("predict_trajectory", "anomaly_node")
     builder.add_edge("anomaly_node", "classification_gate")
-    builder.add_edge("classification_gate", "risk_assessment")
+    builder.add_edge("classification_gate", "physics_verifier")  # NEW: Physics verification
+    builder.add_edge("physics_verifier", "risk_assessment")
     builder.add_edge("risk_assessment", END)
 
     graph = builder.compile()
     logger.info(
         "LangGraph compiled: fetch_data → predict_trajectory → anomaly_node → "
-        "classification_gate → risk_assessment → END"
+        "classification_gate → physics_verifier → risk_assessment → END"
     )
     return graph
 

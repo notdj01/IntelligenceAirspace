@@ -151,6 +151,14 @@ def _target_to_frontend(t_uid: str, t: Any) -> Dict[str, Any]:
     anomaly_reasons = d.get("anomaly_reasons") or []
     risk_score = float(d.get("risk_score", 0.0) or 0.0)
 
+    # Zero-Trust Flight ID - Physics Verification
+    physics_verified = d.get("physics_verified", True)
+    spoofing_flags = d.get("spoofing_flags") or []
+    digital_identity_trust = float(d.get("digital_identity_trust", 1.0))
+    physics_violations = d.get("physics_violations") or []
+    motor_rpm_detected = d.get("motor_rpm_detected")
+    rcs_anomaly_score = float(d.get("rcs_anomaly_score", 0.0))
+
     return {
         "id": d.get("callsign") or d.get("icao24") or t_uid,
         "coords": coords,
@@ -165,6 +173,12 @@ def _target_to_frontend(t_uid: str, t: Any) -> Dict[str, Any]:
         "anomaly_label": anomaly_label,
         "anomaly_reasons": anomaly_reasons,
         "risk_score": risk_score,
+        "physics_verified": physics_verified,
+        "spoofing_flags": spoofing_flags,
+        "digital_identity_trust": digital_identity_trust,
+        "physics_violations": physics_violations,
+        "motor_rpm_detected": motor_rpm_detected,
+        "rcs_anomaly_score": rcs_anomaly_score,
     }
 
 

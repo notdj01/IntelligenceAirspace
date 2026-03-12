@@ -76,6 +76,32 @@ def _compute_risk(t: TargetMetadata) -> Tuple[float, RiskLevel, List[str]]:
     score = _base_risk_from_label(t.label)
     reasons.append(f"Label={t.label.value} → base {score:.1f}")
 
+    # ──────────────────────────────────────────────────────────────────────────
+    # ZERO-TRUST FLIGHT ID: Physics Verification Risk Multiplier
+    # ──────────────────────────────────────────────────────────────────────────
+    # If physics verification failed, dramatically increase risk
+    spoofing_flags = getattr(t, 'spoofing_flags', []) or []
+    physics_verified = getattr(t, 'physics_verified', True)
+    digital_identity_trust = getattr(t, 'digital_identity_trust', 1.0)
+    
+    if not physics_verified and spoofing_flags:
+        # Apply severe penalty for failed physics verification
+        num_flags = len(spoofing_flags)
+        if num_flags >= 2:
+            score *= 3.0  # Critical: Multiple failures = 3x risk
+            reasons.append(f"⚠️ SPOOFING DETECTED ({num_flags} violations) → 3.0x risk multiplier")
+        else:
+            score *= 2.0  # Single failure = 2x risk
+            reasons.append(f"⚠️ PHYSICS VERIFICATION FAILED → 2.0x risk multiplier")
+        
+        # Add specific reasons for spoofing
+        for flag in spoofing_flags:
+            reasons.append(f"   → {flag}")
+    elif digital_identity_trust < 1.0 and digital_identity_trust > 0.5:
+        # Partial trust reduction
+        score *= 1.5
+        reasons.append(f"⚠️ REDUCED TRUST ({digital_identity_trust:.2f}) → 1.5x risk multiplier")
+
     # Proximity to no-fly zones
     d_km, zone = _distance_to_nearest_nfz(t)
     nfz_points = 0.0
@@ -112,7 +138,13 @@ def _compute_risk(t: TargetMetadata) -> Tuple[float, RiskLevel, List[str]]:
     # If this is a commercial/OpenSky aircraft that is NOT inside a NFZ and
     # not already labelled anomalous, keep it in a low-risk band regardless
     # of speed/altitude. Normal, lawful commercial flights should stay green.
-    if is_commercial and not inside_nfz and getattr(t, "anomaly_label", "Normal") == "Normal":
+    # NOTE: This does NOT apply if physics verification failed (potential spoofing)
+    spoofing_flags = getattr(t, 'spoofing_flags', []) or []
+    physics_verified = getattr(t, 'physics_verified', True)
+    
+    if (is_commercial and not inside_nfz 
+        and getattr(t, "anomaly_label", "Normal") == "Normal"
+        and physics_verified):  # Don't clamp risk if physics verification failed
         score = min(score, 20.0)
         reasons.append("Commercial/OpenSky normal corridor → clamped to low risk")
         score = max(0.0, min(score, 100.0))
