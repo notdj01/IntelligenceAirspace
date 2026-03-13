@@ -77,10 +77,13 @@ def _classify_target(t: TargetMetadata, log: List[str]) -> TargetMetadata:
     path = []
 
     # ── Level 0: Flight Dynamics Gate ────────────────────────────────────────
+    # Only flag as Military if NO transponder (ICAO24) - otherwise it's a real aircraft
+    # that might just be flying fast. Real commercial flights can exceed Mach 0.8.
     spd_hi   = t.velocity_ms   >= MACH_0_8_MS
     climb_hi = abs(t.climb_rate_ms) >= CLIMB_5000FPM_MS
 
-    if spd_hi or climb_hi:
+    if (spd_hi or climb_hi) and not t.icao24:
+        # No transponder + high speed/climb = potential military/hostile
         reason = []
         if spd_hi:
             reason.append(f"speed={t.velocity_ms:.0f}m/s > Mach 0.8")
@@ -88,12 +91,24 @@ def _classify_target(t: TargetMetadata, log: List[str]) -> TargetMetadata:
             reason.append(f"climb={t.climb_rate_ms:.1f}m/s > 5000fpm")
         path.append("L0: FlightDynamicsGate → MILITARY")
         log.append(
-            f"  🚀 Target {t.uid}: {', '.join(reason)}. "
+            f"  🚀 Target {t.uid}: {', '.join(reason)}. No transponder detected. "
             f"Labelling Military/High-Performance."
         )
         t.label      = TargetLabel.MILITARY
         t.confidence = 0.95
         t.risk       = RiskLevel.CRITICAL
+        t.classification_path = path
+        return t
+    elif spd_hi or climb_hi:
+        # Has transponder - likely just a fast commercial flight
+        path.append("L0: FlightDynamicsGate → COMMERCIAL (transponder confirmed)")
+        log.append(
+            f"  ✈️  Target {t.uid}: High speed/climb but has transponder (ICAO24={t.icao24}). "
+            f"Keeping as Commercial aircraft."
+        )
+        t.label      = TargetLabel.COMMERCIAL
+        t.confidence = 0.99
+        t.risk       = RiskLevel.LOW
         t.classification_path = path
         return t
 
@@ -186,10 +201,20 @@ def classification_gate(state: AirspaceState) -> AirspaceState:
 
     log.append(f"━━━ Classification Phase — {len(targets)} targets ━━━")
 
-    # Limit to 100 targets max to prevent Torch OOM on CPU/Limited RAM
-    target_items = list(targets.items())[:100]
-    if len(targets) > 100:
-        log.append(f"⚠️ Truncating classification to {len(target_items)} targets to conserve memory.")
+    # Prioritize OpenSky targets (they skip VGG16/RF fingerprinting expensive calls)
+    # Separate and process all targets - no hard limit needed since OpenSky is cheap
+    opensky_targets = {k: v for k, v in targets.items() if v.source == TargetSource.OPENSKY}
+    other_targets = {k: v for k, v in targets.items() if v.source != TargetSource.OPENSKY}
+    
+    # Limit non-OpenSky (radar/manual) targets to prevent Torch OOM
+    other_items = list(other_targets.items())[:100]
+    if len(other_targets) > 100:
+        log.append(f"⚠️ Truncating radar classification to {len(other_items)} targets to conserve memory.")
+    
+    # Merge all OpenSky + limited others
+    target_items = list(opensky_targets.items()) + other_items
+    
+    log.append(f"📡 Processing {len(opensky_targets)} OpenSky (fast) + {len(other_items)} radar/manual targets")
 
     classified: Dict[str, TargetMetadata] = {}
     for uid, target in target_items:

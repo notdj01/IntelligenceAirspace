@@ -77,30 +77,24 @@ def _compute_risk(t: TargetMetadata) -> Tuple[float, RiskLevel, List[str]]:
     reasons.append(f"Label={t.label.value} → base {score:.1f}")
 
     # ──────────────────────────────────────────────────────────────────────────
-    # ZERO-TRUST FLIGHT ID: Physics Verification Risk Multiplier
+    # ZERO-TRUST FLIGHT ID: Physics Verification Risk Impact
     # ──────────────────────────────────────────────────────────────────────────
-    # If physics verification failed, dramatically increase risk
+    # Note: We no longer apply heavy multipliers for physics verification failures
+    # because this causes over-escalation. Instead, we just flag them for awareness.
+    # The spoofing flags are still recorded and displayed in the UI.
     spoofing_flags = getattr(t, 'spoofing_flags', []) or []
     physics_verified = getattr(t, 'physics_verified', True)
     digital_identity_trust = getattr(t, 'digital_identity_trust', 1.0)
     
     if not physics_verified and spoofing_flags:
-        # Apply severe penalty for failed physics verification
-        num_flags = len(spoofing_flags)
-        if num_flags >= 2:
-            score *= 3.0  # Critical: Multiple failures = 3x risk
-            reasons.append(f"⚠️ SPOOFING DETECTED ({num_flags} violations) → 3.0x risk multiplier")
-        else:
-            score *= 2.0  # Single failure = 2x risk
-            reasons.append(f"⚠️ PHYSICS VERIFICATION FAILED → 2.0x risk multiplier")
-        
-        # Add specific reasons for spoofing
-        for flag in spoofing_flags:
-            reasons.append(f"   → {flag}")
+        # Instead of multiplying risk, just add a small penalty
+        # and log the flags for display in UI
+        score += 10.0
+        reasons.append(f"⚠️ Physics verification issues detected ({len(spoofing_flags)} flags)")
     elif digital_identity_trust < 1.0 and digital_identity_trust > 0.5:
-        # Partial trust reduction
-        score *= 1.5
-        reasons.append(f"⚠️ REDUCED TRUST ({digital_identity_trust:.2f}) → 1.5x risk multiplier")
+        # Minor penalty for reduced trust
+        score += 5.0
+        reasons.append(f"⚠️ Reduced trust score ({digital_identity_trust:.2f})")
 
     # Proximity to no-fly zones
     d_km, zone = _distance_to_nearest_nfz(t)

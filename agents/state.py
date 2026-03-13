@@ -94,6 +94,14 @@ class TargetMetadata:
     # Risk Assessment
     risk_score: float = 0.0
     
+    # ROE - Rules of Engagement (Legal-CoPilot)
+    zone_type: str = "OPEN"                    # Current zone classification
+    legal_basis: str = ""                       # Applicable regulation
+    authorized_responses: List[str] = field(default_factory=list)   # Allowed countermeasures
+    prohibited_responses: List[str] = field(default_factory=list)    # Not allowed
+    reporting_required: bool = False            # Whether to file report
+    roe_confidence: float = 1.0               # 0.0 - 1.0
+    
     # Extended trajectory for physics verification
     history_heading: List[float] = field(default_factory=list)
 
@@ -133,6 +141,13 @@ class TargetMetadata:
             "motor_rpm_detected": self.motor_rpm_detected,
             "rcs_anomaly_score": self.rcs_anomaly_score,
             "risk_score": self.risk_score,
+            # ROE - Rules of Engagement
+            "zone_type": self.zone_type,
+            "legal_basis": self.legal_basis,
+            "authorized_responses": self.authorized_responses,
+            "prohibited_responses": self.prohibited_responses,
+            "reporting_required": self.reporting_required,
+            "roe_confidence": self.roe_confidence,
         }
 
 

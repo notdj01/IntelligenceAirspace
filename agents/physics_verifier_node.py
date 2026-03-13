@@ -445,15 +445,18 @@ def _check_trajectory_consistency(
     # Check for impossibly large jumps (teleportation)
     lat_deg_to_m = 111320.0
     
+    # Use actual velocity if available, otherwise use conservative estimate
+    # Commercial aircraft: ~250 m/s, drones: ~20 m/s, birds: ~15 m/s
+    max_speed = max(velocity_ms, 50.0)  # At least 50 m/s for aircraft
+    max_distance = max_speed * 12  # 12 seconds between updates (generous)
+    
     for i in range(1, len(history_lat)):
         d_lat = abs(history_lat[i] - history_lat[i-1]) * lat_deg_to_m
         d_lon = abs(history_lon[i] - history_lon[i-1]) * lat_deg_to_m
         distance = math.sqrt(d_lat**2 + d_lon**2)
         
-        # Max possible movement in 10 seconds at max drone speed
-        max_distance = 50.0 * 10  # 50 m/s * 10s
-        
-        if distance > max_distance * 3:  # Allow some margin
+        # Allow 3x margin for GPS jitter and update intervals
+        if distance > max_distance * 3:
             return (
                 SpoofingFlag.TRAJECTORY_INCONSISTENCY,
                 f"Impossible trajectory jump: {distance:.0f}m in single timestep"
@@ -470,6 +473,9 @@ def verify_physics_identity(target: TargetMetadata) -> PhysicsVerificationResult
     """
     Perform full physics-based identity verification.
     
+    NOTE: We skip verification for OpenSky/ADS-B targets because they are
+    already verified via transponder data. We only verify RADAR targets.
+    
     Returns a PhysicsVerificationResult with:
     - physics_verified: True if all checks pass
     - spoofing_flags: List of detected anomalies
@@ -481,6 +487,21 @@ def verify_physics_identity(target: TargetMetadata) -> PhysicsVerificationResult
     - max_turn_rate: Maximum observed turn rate
     - category_consistent: Whether category matches physics
     """
+    # Skip physics verification for OpenSky/ADS-B targets - they are already trusted
+    # We only verify RADAR targets (no transponder)
+    if target.source.value in ("OpenSky ADS-B", "Fused") or target.icao24:
+        return PhysicsVerificationResult(
+            physics_verified=True,
+            spoofing_flags=[],
+            digital_identity_trust=1.0,
+            physics_violations=[],
+            motor_rpm_detected=None,
+            rcs_anomaly_score=0.0,
+            max_g_force=1.0,
+            max_turn_rate=0.0,
+            category_consistent=True,
+        )
+    
     spoofing_flags: List[SpoofingFlag] = []
     physics_violations: List[str] = []
     motor_rpm_detected: Optional[float] = None

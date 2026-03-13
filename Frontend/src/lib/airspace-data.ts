@@ -27,6 +27,13 @@ export interface AirTarget {
   physics_violations?: string[];
   motor_rpm_detected?: number;
   rcs_anomaly_score?: number;
+  // ROE - Rules of Engagement (Legal-Agentic Co-Pilot)
+  zone_type?: string;
+  legal_basis?: string;
+  authorized_responses?: string[];
+  prohibited_responses?: string[];
+  reporting_required?: boolean;
+  roe_confidence?: number;
 }
 
 export interface Agents {

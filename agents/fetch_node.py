@@ -227,16 +227,17 @@ def fetch_spoofed_targets(
     - "Drone" with phantom speed
     
     This function is called periodically to demonstrate the physics verification.
+    NOTE: Uses fixed UIDs so targets are updated, not accumulated.
     """
     if not include_spoofed:
         return {}
     
     spoofed: Dict[str, TargetMetadata] = {}
     now = time.time()
-    random.seed(int(now) // 30)  # Changes every 30 seconds
     
+    # Use FIXED UIDs so we update existing spoofed targets instead of creating new ones
     # Attack Type 1: Motor in Bird (identity hijack)
-    uid1 = f"spoof_bird_{int(now) % 1000:03d}"
+    uid1 = "spoof_motor_bird"
     spoofed[uid1] = TargetMetadata(
         uid=uid1,
         callsign="SPOOF-001",
@@ -255,7 +256,7 @@ def fetch_spoofed_targets(
     )
     
     # Attack Type 2: Phantom aircraft (impossible maneuver)
-    uid2 = f"spoof_phantom_{int(now) % 1000:03d}"
+    uid2 = "spoof_phantom_aircraft"
     spoofed[uid2] = TargetMetadata(
         uid=uid2,
         callsign="PHANTOM-01",
@@ -274,7 +275,7 @@ def fetch_spoofed_targets(
     )
     
     # Attack Type 3: Category mismatch (wrong speed for type)
-    uid3 = f"spoof_category_{int(now) % 1000:03d}"
+    uid3 = "spoof_category_mismatch"
     spoofed[uid3] = TargetMetadata(
         uid=uid3,
         callsign="CATEGORY-ERR",
@@ -320,8 +321,11 @@ def fetch_data(state: AirspaceState) -> AirspaceState:
     # 2. Simulated primary radar
     radar_targets = fetch_simulated_radar(center_lat, center_lon, log)
 
-    # 3. Synthetic spoofed targets for Zero-Trust testing (every ~30 seconds)
-    spoofed_targets = fetch_spoofed_targets(center_lat, center_lon, log, include_spoofed=(cycle % 3 == 0))
+    # 3. Synthetic spoofed targets for Zero-Trust testing (DISABLED by default)
+    # Enable via environment variable: ZERO_TRUST_DEMO=1
+    import os
+    enable_spoofed = os.environ.get("ZERO_TRUST_DEMO", "0") == "1"
+    spoofed_targets = fetch_spoofed_targets(center_lat, center_lon, log, include_spoofed=enable_spoofed)
 
     # 4. Manual injections (one-shot — consumed after this cycle)
     manual_targets = fetch_manual_injections(

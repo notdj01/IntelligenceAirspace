@@ -159,6 +159,14 @@ def _target_to_frontend(t_uid: str, t: Any) -> Dict[str, Any]:
     motor_rpm_detected = d.get("motor_rpm_detected")
     rcs_anomaly_score = float(d.get("rcs_anomaly_score", 0.0))
 
+    # ROE - Rules of Engagement
+    zone_type = d.get("zone_type", "OPEN")
+    legal_basis = d.get("legal_basis", "")
+    authorized_responses = d.get("authorized_responses") or []
+    prohibited_responses = d.get("prohibited_responses") or []
+    reporting_required = bool(d.get("reporting_required", False))
+    roe_confidence = float(d.get("roe_confidence", 1.0))
+
     return {
         "id": d.get("callsign") or d.get("icao24") or t_uid,
         "coords": coords,
@@ -179,6 +187,13 @@ def _target_to_frontend(t_uid: str, t: Any) -> Dict[str, Any]:
         "physics_violations": physics_violations,
         "motor_rpm_detected": motor_rpm_detected,
         "rcs_anomaly_score": rcs_anomaly_score,
+        # ROE fields
+        "zone_type": zone_type,
+        "legal_basis": legal_basis,
+        "authorized_responses": authorized_responses,
+        "prohibited_responses": prohibited_responses,
+        "reporting_required": reporting_required,
+        "roe_confidence": roe_confidence,
     }
 
 

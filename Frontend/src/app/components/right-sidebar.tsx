@@ -8,6 +8,10 @@ import {
   Shield,
   AlertTriangle,
   Radio,
+  Gavel,
+  FileText,
+  CheckSquare,
+  XCircle,
 } from "lucide-react";
 import type { AirTarget, Classification } from "../../lib/airspace-data";
 import {
@@ -34,6 +38,7 @@ export function RightSidebar({ target, onConfirm }: RightSidebarProps) {
       <TargetDetailCard target={target} />
       <MicroDopplerPanel target={target} />
       <ZeroTrustPanel target={target} />
+      <ROEPanel target={target} />
       <CommanderXAIBox target={target} onConfirm={onConfirm} />
     </aside>
   );
@@ -336,6 +341,159 @@ function DopplerCanvas({ target }: { target: AirTarget }) {
       className="rounded overflow-hidden"
     >
       <canvas ref={canvasRef} width={280} height={72} />
+    </div>
+  );
+}
+
+// ROE - Rules of Engagement Panel
+function ROEPanel({ target }: { target: AirTarget | null }) {
+  const zoneType = target?.zone_type ?? "OPEN";
+  const legalBasis = target?.legal_basis ?? "";
+  const authorizedResponses = target?.authorized_responses ?? [];
+  const prohibitedResponses = target?.prohibited_responses ?? [];
+  const reportingRequired = target?.reporting_required ?? false;
+  const roeConfidence = target?.roe_confidence ?? 1.0;
+
+  // Determine status based on response availability
+  const hasAuthorized = authorizedResponses.length > 0;
+  const isMonitorOnly = authorizedResponses.length === 1 && authorizedResponses[0] === "Monitor Only";
+  
+  const statusColor = isMonitorOnly ? "#4ade80" : hasAuthorized ? "#fb923c" : "#f43f5e";
+  const statusIcon = isMonitorOnly ? <CheckCircle size={14} /> : hasAuthorized ? <AlertTriangle size={14} /> : <XCircle size={14} />;
+  const statusText = isMonitorOnly ? "CLEARED" : hasAuthorized ? "RESTRICTED" : "NO RESPONSE";
+
+  return (
+    <div
+      style={{
+        background: "rgba(13,20,32,0.7)",
+        backdropFilter: "blur(12px)",
+        border: `1px solid ${statusColor}40`,
+      }}
+      className="rounded-lg p-4 flex flex-col gap-3"
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Gavel size={14} style={{ color: statusColor }} />
+          <h2 className="font-mono text-xs uppercase tracking-widest" style={{ color: statusColor }}>
+            RULES OF ENGAGEMENT
+          </h2>
+        </div>
+        <div
+          style={{
+            background: `${statusColor}1A`,
+            border: `1px solid ${statusColor}40`,
+          }}
+          className="px-2 py-1 rounded-sm flex items-center gap-1"
+        >
+          {statusIcon}
+          <span className="font-mono text-[10px] font-bold" style={{ color: statusColor }}>
+            {statusText}
+          </span>
+        </div>
+      </div>
+
+      {/* Content */}
+      {!target ? (
+        <div
+          style={{ background: "rgba(15,23,42,0.8)" }}
+          className="h-[100px] rounded flex items-center justify-center"
+        >
+          <span className="font-mono text-xs text-[#334155]">
+            — WAITING FOR TARGET —
+          </span>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {/* Zone Info */}
+          <div className="flex flex-col gap-1">
+            <span className="font-mono text-[10px] text-[#64748b] uppercase">Zone Classification</span>
+            <div className="flex items-center gap-2">
+              <FileText size={12} className="text-[#94a3b8]" />
+              <span className="font-mono text-xs text-[#e2e8f0]">{zoneType}</span>
+            </div>
+          </div>
+
+          {/* Legal Basis */}
+          {legalBasis && (
+            <div className="flex flex-col gap-1">
+              <span className="font-mono text-[10px] text-[#64748b] uppercase">Legal Basis</span>
+              <span className="font-mono text-[10px] text-[#94a3b8] leading-tight">
+                {legalBasis}
+              </span>
+            </div>
+          )}
+
+          {/* Authorized Responses */}
+          {authorizedResponses.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <span className="font-mono text-[10px] text-[#64748b] uppercase">
+                Authorized Responses
+              </span>
+              <div className="flex flex-wrap gap-1">
+                {authorizedResponses.map((response, idx) => (
+                  <span
+                    key={idx}
+                    className="font-mono text-[9px] px-1.5 py-0.5 rounded"
+                    style={{
+                      background: "rgba(74,222,128,0.15)",
+                      color: "#4ade80",
+                      border: "1px solid rgba(74,222,128,0.3)",
+                    }}
+                  >
+                    {response}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Prohibited Responses */}
+          {prohibitedResponses.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <span className="font-mono text-[10px] text-[#64748b] uppercase">
+                Prohibited
+              </span>
+              <div className="flex flex-wrap gap-1">
+                {prohibitedResponses.map((response, idx) => (
+                  <span
+                    key={idx}
+                    className="font-mono text-[9px] px-1.5 py-0.5 rounded"
+                    style={{
+                      background: "rgba(244,63,94,0.15)",
+                      color: "#f43f5e",
+                      border: "1px solid rgba(244,63,94,0.3)",
+                    }}
+                  >
+                    {response}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Reporting Required */}
+          {reportingRequired && (
+            <div
+              className="flex items-center gap-2 px-2 py-1.5 rounded"
+              style={{ background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.3)" }}
+            >
+              <FileText size={12} style={{ color: "#fbbf24" }} />
+              <span className="font-mono text-[10px]" style={{ color: "#fbbf24" }}>
+                Reporting Required
+              </span>
+            </div>
+          )}
+
+          {/* Confidence */}
+          <div className="flex items-center justify-between">
+            <span className="font-mono text-[10px] text-[#64748b]">ROE Confidence</span>
+            <span className="font-mono text-[10px]" style={{ color: roeConfidence >= 0.9 ? "#4ade80" : roeConfidence >= 0.7 ? "#fbbf24" : "#f43f5e" }}>
+              {(roeConfidence * 100).toFixed(0)}%
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
