@@ -102,6 +102,15 @@ class TargetMetadata:
     reporting_required: bool = False            # Whether to file report
     roe_confidence: float = 1.0               # 0.0 - 1.0
     
+    # Deception Defense - Honeypot Airspace
+    deception_active: bool = False              # Is deception currently being applied
+    deception_type: str = ""                   # Type: GPS_SPOOF, HONEYPOT, HYBRID
+    cyber_catcher_id: str = ""                 # ID of targeted Cyber-Catcher zone
+    cyber_catcher_target: Optional[Dict[str, float]] = None  # Target lat/lon for lure
+    deception_start_time: Optional[float] = None  # Unix timestamp when deception started
+    deception_technique: str = ""               # Specific technique description
+    spoofed_path: List[Dict[str, float]] = field(default_factory=list)  # Simulated GPS path
+    
     # Extended trajectory for physics verification
     history_heading: List[float] = field(default_factory=list)
 
@@ -148,6 +157,14 @@ class TargetMetadata:
             "prohibited_responses": self.prohibited_responses,
             "reporting_required": self.reporting_required,
             "roe_confidence": self.roe_confidence,
+            # Deception Defense - Honeypot Airspace
+            "deception_active": self.deception_active,
+            "deception_type": self.deception_type,
+            "cyber_catcher_id": self.cyber_catcher_id,
+            "cyber_catcher_target": self.cyber_catcher_target,
+            "deception_start_time": self.deception_start_time,
+            "deception_technique": self.deception_technique,
+            "spoofed_path": self.spoofed_path,
         }
 
 
@@ -160,6 +177,7 @@ class AirspaceState(TypedDict):
     manual_injections: list of manually added targets pending classification
     cycle_id: monotonic counter for each 10-second refresh cycle
     errors: any non-fatal errors encountered this cycle
+    available_catchers: list of active Cyber-Catcher zones for deception
     """
     active_targets: Dict[str, TargetMetadata]
     agent_log: List[str]
@@ -168,3 +186,4 @@ class AirspaceState(TypedDict):
     manual_injections: List[Dict[str, Any]]
     cycle_id: int
     errors: List[str]
+    available_catchers: List[Dict[str, Any]]

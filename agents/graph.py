@@ -21,6 +21,7 @@ from agents.classify_node import classification_gate
 from agents.risk_node import risk_assessment
 from agents.physics_verifier_node import physics_verifier
 from agents.roe_node import roe_assessment
+from agents.deception_node import deception_assessment
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +37,7 @@ def build_graph() -> StateGraph:
     builder.add_node("physics_verifier",   physics_verifier)  # Zero-Trust Flight ID
     builder.add_node("risk_assessment",    risk_assessment)
     builder.add_node("roe_assessment",     roe_assessment)    # Legal-Agentic Co-Pilot
+    builder.add_node("deception_assessment", deception_assessment)  # Active Deception Engine
 
     builder.set_entry_point("fetch_data")
     builder.add_edge("fetch_data", "predict_trajectory")
@@ -44,12 +46,14 @@ def build_graph() -> StateGraph:
     builder.add_edge("classification_gate", "physics_verifier")  # NEW: Physics verification
     builder.add_edge("physics_verifier", "risk_assessment")
     builder.add_edge("risk_assessment", "roe_assessment")      # NEW: ROE
-    builder.add_edge("roe_assessment", END)
+    builder.add_edge("roe_assessment", "deception_assessment")  # Deception Engine
+    builder.add_edge("deception_assessment", END)
 
     graph = builder.compile()
     logger.info(
         "LangGraph compiled: fetch_data → predict_trajectory → anomaly_node → "
-        "classification_gate → physics_verifier → risk_assessment → roe_assessment → END"
+        "classification_gate → physics_verifier → risk_assessment → roe_assessment → "
+        "deception_assessment → END"
     )
     return graph
 
@@ -90,6 +94,7 @@ def run_cycle(
         "manual_injections": manual_injections or [],
         "cycle_id":          cycle_id,
         "errors":            [],
+        "available_catchers": [],
     }
 
     try:

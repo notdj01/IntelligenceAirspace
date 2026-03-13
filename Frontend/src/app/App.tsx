@@ -38,6 +38,7 @@ export default function App() {
           active_targets: data.active_targets ?? [],
           agents: data.agents ?? INITIAL_STATE.agents,
           anomalous_target_count: data.anomalous_target_count ?? 0,
+          cyber_catchers: data.cyber_catchers ?? [],
         });
         setError(null);
       } catch (e) {
@@ -263,6 +264,7 @@ export default function App() {
               onSelectTarget={handleSelectTarget}
               onDeselect={handleDeselect}
               focusTargetId={focusTargetId}
+              cyberCatchers={dashboardState.cyber_catchers || []}
             />
           </div>
         </div>

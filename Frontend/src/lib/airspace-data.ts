@@ -34,6 +34,14 @@ export interface AirTarget {
   prohibited_responses?: string[];
   reporting_required?: boolean;
   roe_confidence?: number;
+  // Deception Defense - Honeypot Airspace
+  deception_active?: boolean;
+  deception_type?: string;
+  cyber_catcher_id?: string;
+  cyber_catcher_target?: { lat: number; lon: number };
+  deception_start_time?: string;
+  deception_technique?: string;
+  spoofed_path?: [number, number][];
 }
 
 export interface Agents {
@@ -46,6 +54,7 @@ export interface DashboardState {
   active_targets: AirTarget[];
   agents: Agents;
   anomalous_target_count?: number;
+  cyber_catchers?: CyberCatcherZone[];
 }
 
 export interface NoFlyZone {
@@ -54,6 +63,16 @@ export interface NoFlyZone {
   description: string;
   center: [number, number]; // [lat, lon]
   radius_km: number;
+}
+
+export interface CyberCatcherZone {
+  id: string;
+  name: string;
+  lat: number;
+  lon: number;
+  radius_m: number;
+  safety_rating: string;
+  active: boolean;
 }
 
 export interface RiskAlert {

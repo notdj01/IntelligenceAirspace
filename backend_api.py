@@ -166,6 +166,15 @@ def _target_to_frontend(t_uid: str, t: Any) -> Dict[str, Any]:
     prohibited_responses = d.get("prohibited_responses") or []
     reporting_required = bool(d.get("reporting_required", False))
     roe_confidence = float(d.get("roe_confidence", 1.0))
+    
+    # Deception Defense - Honeypot Airspace
+    deception_active = bool(d.get("deception_active", False))
+    deception_type = d.get("deception_type", "")
+    cyber_catcher_id = d.get("cyber_catcher_id", "")
+    cyber_catcher_target = d.get("cyber_catcher_target")
+    deception_start_time = d.get("deception_start_time")
+    deception_technique = d.get("deception_technique", "")
+    spoofed_path = d.get("spoofed_path") or []
 
     return {
         "id": d.get("callsign") or d.get("icao24") or t_uid,
@@ -194,6 +203,14 @@ def _target_to_frontend(t_uid: str, t: Any) -> Dict[str, Any]:
         "prohibited_responses": prohibited_responses,
         "reporting_required": reporting_required,
         "roe_confidence": roe_confidence,
+        # Deception Defense fields
+        "deception_active": deception_active,
+        "deception_type": deception_type,
+        "cyber_catcher_id": cyber_catcher_id,
+        "cyber_catcher_target": cyber_catcher_target,
+        "deception_start_time": deception_start_time,
+        "deception_technique": deception_technique,
+        "spoofed_path": spoofed_path,
     }
 
 
@@ -233,6 +250,7 @@ def get_state() -> Dict[str, Any]:
         "agent_log": airspace.get("agent_log", []),
         "errors": airspace.get("errors", []),
         "anomalous_target_count": anomalous_count,
+        "cyber_catchers": airspace.get("available_catchers", []),
     }
 
 

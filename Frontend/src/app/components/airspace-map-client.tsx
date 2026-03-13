@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import type { AirTarget, Classification, NoFlyZone } from "../../lib/airspace-data";
+import type { AirTarget, Classification, NoFlyZone, CyberCatcherZone } from "../../lib/airspace-data";
 import { RISK_COLORS, NO_FLY_ZONES } from "../../lib/airspace-data";
 
 interface AirspaceMapClientProps {
@@ -10,6 +10,7 @@ interface AirspaceMapClientProps {
   onSelectTarget: (target: AirTarget) => void;
   onDeselect: () => void;
   focusTargetId?: string | null;
+  cyberCatchers?: CyberCatcherZone[];
 }
 
 export function AirspaceMapClient({
@@ -18,6 +19,7 @@ export function AirspaceMapClient({
   onSelectTarget,
   onDeselect,
   focusTargetId = null,
+  cyberCatchers = [],
 }: AirspaceMapClientProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -26,6 +28,8 @@ export function AirspaceMapClient({
   const predictionPolylinesRef = useRef<Map<string, L.Polyline>>(new Map());
   const predictionHeadsRef = useRef<Map<string, L.Marker>>(new Map());
   const nfzLayerRef = useRef<L.LayerGroup | null>(null);
+  const ccLayerRef = useRef<L.LayerGroup | null>(null);
+  const deceptionPathRef = useRef<L.Polyline | null>(null);
   const lastFocusedIdRef = useRef<string | null>(null);
   const onSelectTargetRef = useRef(onSelectTarget);
   const onDeselectRef = useRef(onDeselect);
@@ -80,6 +84,10 @@ export function AirspaceMapClient({
     });
     nfzLayerRef.current = nfzLayer;
 
+    // Add Cyber-Catcher (honeypot) zones layer
+    const ccLayer = L.layerGroup().addTo(map);
+    ccLayerRef.current = ccLayer;
+
     // Click on empty map area deselects
     map.on("click", () => {
       onDeselectRef.current();
@@ -99,6 +107,15 @@ export function AirspaceMapClient({
         nfzLayerRef.current.remove();
         nfzLayerRef.current = null;
       }
+      if (ccLayerRef.current) {
+        ccLayerRef.current.clearLayers();
+        ccLayerRef.current.remove();
+        ccLayerRef.current = null;
+      }
+      if (deceptionPathRef.current) {
+        deceptionPathRef.current.remove();
+        deceptionPathRef.current = null;
+      }
     };
   }, []);
 
@@ -106,6 +123,9 @@ export function AirspaceMapClient({
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
+
+    // When a target is selected, only show its trajectory
+    const hasSelection = selectedId !== null;
 
     targets.forEach((target) => {
       const history =
@@ -119,13 +139,18 @@ export function AirspaceMapClient({
       const riskColor = RISK_COLORS[target.risk_level];
       const isAnomalous = target.anomaly_label === "Anomalous";
 
+      // Determine visibility: show trajectory only for selected target or when nothing is selected
+      const showTrajectory = !hasSelection || isSelected;
+      const trajectoryOpacity = showTrajectory ? (isSelected ? 0.8 : 0.4) : 0;
+      const trajectoryWeight = isSelected ? 2 : 1;
+
       // Update or create polyline
       let polyline = polylinesRef.current.get(target.id);
       if (!polyline) {
         polyline = L.polyline(history, {
           color: riskColor,
-          weight: isSelected ? 2 : 1,
-          opacity: isSelected ? 0.8 : 0.4,
+          weight: trajectoryWeight,
+          opacity: trajectoryOpacity,
           dashArray: isAnomalous ? "1 4" : "4 3",
         }).addTo(map);
         polylinesRef.current.set(target.id, polyline);
@@ -133,8 +158,8 @@ export function AirspaceMapClient({
         polyline.setLatLngs(history);
         polyline.setStyle({
           color: riskColor,
-          weight: isSelected ? 2 : 1,
-          opacity: isSelected ? 0.8 : 0.4,
+          weight: trajectoryWeight,
+          opacity: trajectoryOpacity,
           dashArray: isAnomalous ? "1 4" : "4 3",
         });
       }
@@ -175,7 +200,11 @@ export function AirspaceMapClient({
       // Update or create predicted trajectory polyline (future path only)
       const predicted = target.predicted_trajectory ?? [];
       let predPolyline = predictionPolylinesRef.current.get(target.id);
-      if (predicted.length > 0) {
+      
+      // Show predicted trajectory only for selected target or when nothing is selected
+      const showPredicted = !hasSelection || isSelected;
+      
+      if (predicted.length > 0 && showPredicted) {
         const predPoints: [number, number][] = [
           currentCoords,
           ...predicted,
@@ -264,6 +293,82 @@ export function AirspaceMapClient({
     map.setView([lat, lon], map.getZoom());
     lastFocusedIdRef.current = focusTargetId;
   }, [focusTargetId, targets]);
+
+  // Render Cyber-Catcher zones and deception paths
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    const ccLayer = ccLayerRef.current;
+    if (!map || !ccLayer) return;
+
+    // Clear existing zones
+    ccLayer.clearLayers();
+
+    // Remove old deception path
+    if (deceptionPathRef.current) {
+      deceptionPathRef.current.remove();
+      deceptionPathRef.current = null;
+    }
+
+    // Render Cyber-Catcher zones
+    cyberCatchers.forEach((cc) => {
+      if (!cc.active) return;
+
+      const circle = L.circle([cc.lat, cc.lon], {
+        radius: cc.radius_m,
+        color: "#a855f7", // Purple for honeypot
+        fillColor: "#a855f7",
+        fillOpacity: 0.15,
+        weight: 2,
+        dashArray: "6 4",
+      }).addTo(ccLayer);
+
+      circle.bindTooltip(
+        `<div style="font-family: monospace; font-size: 11px;">
+          <div style="font-weight:bold; color:#a855f7;">${cc.id}</div>
+          <div style="color:#e9d5ff;">Cyber-Catcher Zone</div>
+          <div style="color:#e9d5ff;">Rating: ${cc.safety_rating}</div>
+        </div>`,
+        {
+          permanent: false,
+          direction: "top",
+          className: "cc-tooltip",
+        }
+      );
+    });
+
+    // Draw deception path for selected target if it has deception active
+    const selectedTarget = targets.find((t) => t.id === selectedId);
+    if (selectedTarget && selectedTarget.deception_active && selectedTarget.cyber_catcher_id) {
+      // Find the cyber-catcher coordinates
+      const catcher = cyberCatchers.find((c) => c.id === selectedTarget.cyber_catcher_id);
+      if (catcher && catcher.active) {
+        const startCoords: [number, number] = selectedTarget.coords;
+        const endCoords: [number, number] = [catcher.lat, catcher.lon];
+
+        // Create the deception path polyline
+        const path = L.polyline([startCoords, endCoords], {
+          color: "#f43f5e", // Red for deception
+          weight: 3,
+          opacity: 0.9,
+          dashArray: "8 4",
+        }).addTo(map);
+
+        path.bindTooltip(
+          `<div style="font-family: monospace; font-size: 11px;">
+            <div style="font-weight:bold; color:#f43f5e;">DECEPTION PATH</div>
+            <div style="color:#fecdd3;">Luring to ${catcher.id}</div>
+          </div>`,
+          {
+            permanent: false,
+            direction: "center",
+            className: "deception-tooltip",
+          }
+        );
+
+        deceptionPathRef.current = path;
+      }
+    }
+  }, [cyberCatchers, targets, selectedId]);
 
   return (
     <div className="relative size-full rounded-lg overflow-hidden">

@@ -12,6 +12,9 @@ import {
   FileText,
   CheckSquare,
   XCircle,
+  Target,
+  Wifi,
+  MapPin,
 } from "lucide-react";
 import type { AirTarget, Classification } from "../../lib/airspace-data";
 import {
@@ -39,6 +42,7 @@ export function RightSidebar({ target, onConfirm }: RightSidebarProps) {
       <MicroDopplerPanel target={target} />
       <ZeroTrustPanel target={target} />
       <ROEPanel target={target} />
+      <DeceptionPanel target={target} />
       <CommanderXAIBox target={target} onConfirm={onConfirm} />
     </aside>
   );
@@ -491,6 +495,146 @@ function ROEPanel({ target }: { target: AirTarget | null }) {
             <span className="font-mono text-[10px]" style={{ color: roeConfidence >= 0.9 ? "#4ade80" : roeConfidence >= 0.7 ? "#fbbf24" : "#f43f5e" }}>
               {(roeConfidence * 100).toFixed(0)}%
             </span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Deception Defense - Honeypot Airspace Panel
+function DeceptionPanel({ target }: { target: AirTarget | null }) {
+  const deceptionActive = target?.deception_active ?? false;
+  const deceptionType = target?.deception_type ?? "";
+  const cyberCatcherId = target?.cyber_catcher_id ?? "";
+  const cyberCatcherTarget = target?.cyber_catcher_target;
+  const deceptionStartTime = target?.deception_start_time ?? "";
+  const deceptionTechnique = target?.deception_technique ?? "";
+
+  const statusColor = deceptionActive ? "#f43f5e" : "#4ade80";
+  const statusText = deceptionActive ? "ACTIVE" : "INACTIVE";
+  const statusIcon = deceptionActive ? <AlertTriangle size={14} /> : <CheckCircle size={14} />;
+
+  return (
+    <div
+      style={{
+        background: "rgba(13,20,32,0.7)",
+        backdropFilter: "blur(12px)",
+        border: `1px solid ${statusColor}40`,
+      }}
+      className="rounded-lg p-4 flex flex-col gap-3"
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Target size={14} style={{ color: statusColor }} />
+          <h2 className="font-mono text-xs uppercase tracking-widest" style={{ color: statusColor }}>
+            DECEPTION DEFENSE
+          </h2>
+        </div>
+        <div
+          style={{
+            background: `${statusColor}1A`,
+            border: `1px solid ${statusColor}40`,
+          }}
+          className="px-2 py-1 rounded-sm flex items-center gap-1"
+        >
+          {statusIcon}
+          <span className="font-mono text-[10px] font-bold" style={{ color: statusColor }}>
+            {statusText}
+          </span>
+        </div>
+      </div>
+
+      {/* Content */}
+      {!target ? (
+        <div
+          style={{ background: "rgba(15,23,42,0.8)" }}
+          className="h-[80px] rounded flex items-center justify-center"
+        >
+          <span className="font-mono text-xs text-[#334155]">
+            — WAITING FOR TARGET —
+          </span>
+        </div>
+      ) : !deceptionActive ? (
+        <div className="flex flex-col gap-2">
+          <div
+            style={{ background: "rgba(74,222,128,0.1)" }}
+            className="p-3 rounded border border-green-500/20"
+          >
+            <div className="flex items-center gap-2">
+              <CheckCircle size={14} className="text-green-400" />
+              <span className="font-mono text-xs text-green-400">
+                No active deception operation
+              </span>
+            </div>
+            <p className="font-mono text-[10px] text-[#64748b] mt-1">
+              Target is not being targeted by deception systems
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {/* Deception Type */}
+          <div className="flex flex-col gap-1">
+            <span className="font-mono text-[10px] text-[#64748b] uppercase">Deception Type</span>
+            <div className="flex items-center gap-2">
+              <Zap size={12} className="text-red-400" />
+              <span className="font-mono text-xs text-[#e2e8f0]">{deceptionType || "HYBRID"}</span>
+            </div>
+          </div>
+
+          {/* Cyber-Catcher */}
+          {cyberCatcherId && (
+            <div className="flex flex-col gap-1">
+              <span className="font-mono text-[10px] text-[#64748b] uppercase">Lure Target</span>
+              <div className="flex items-center gap-2">
+                <MapPin size={12} className="text-orange-400" />
+                <span className="font-mono text-xs text-[#e2e8f0]">{cyberCatcherId}</span>
+              </div>
+              {cyberCatcherTarget && (
+                <span className="font-mono text-[10px] text-[#64748b] ml-4">
+                  [{cyberCatcherTarget.lat.toFixed(4)}, {cyberCatcherTarget.lon.toFixed(4)}]
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Technique */}
+          {deceptionTechnique && (
+            <div className="flex flex-col gap-1">
+              <span className="font-mono text-[10px] text-[#64748b] uppercase">Technique</span>
+              <div className="flex items-center gap-2">
+                <Wifi size={12} className="text-purple-400" />
+                <span className="font-mono text-xs text-[#e2e8f0]">{deceptionTechnique}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Start Time */}
+          {deceptionStartTime && (
+            <div className="flex flex-col gap-1">
+              <span className="font-mono text-[10px] text-[#64748b] uppercase">Activated</span>
+              <span className="font-mono text-xs text-[#94a3b8]">
+                {deceptionStartTime}
+              </span>
+            </div>
+          )}
+
+          {/* Status Alert */}
+          <div
+            style={{ background: "rgba(244,63,94,0.1)" }}
+            className="p-3 rounded border border-red-500/20"
+          >
+            <div className="flex items-center gap-2">
+              <AlertTriangle size={14} className="text-red-400" />
+              <span className="font-mono text-xs text-red-400 font-bold">
+                DECEPTION IN PROGRESS
+              </span>
+            </div>
+            <p className="font-mono text-[10px] text-[#64748b] mt-1">
+              Target navigation is being manipulated to land at Cyber-Catcher
+            </p>
           </div>
         </div>
       )}
